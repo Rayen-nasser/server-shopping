@@ -3,6 +3,7 @@ const app = express();
 const stockRouter = require("./router/stock");
 const userRouter = require("./router/auth");
 const cartRouter = require("./router/cart");
+const contactRouter = require("./router/contact");
 const path = require("path");
 const { dbConnect } = require("./util/database");
 require("dotenv").config();
@@ -26,5 +27,6 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/api/stock", stockRouter);
 app.use("/api/auth", userRouter);
 app.use("/api/cart", cartRouter);
+app.use("/api/contact", contactRouter);
 
 module.exports = app;
