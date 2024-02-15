@@ -3,9 +3,13 @@ const app = express();
 const stockRouter = require("./router/stock");
 const userRouter = require("./router/auth");
 const cartRouter = require("./router/cart");
+const analyticRouter = require("./router/analytics");
 const contactRouter = require("./router/contact");
 const path = require("path");
 const { dbConnect } = require("./util/database");
+const passwordCtrl = require('./controllers/passwordReset')
+
+
 require("dotenv").config();
 
 dbConnect();
@@ -27,6 +31,10 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/api/stock", stockRouter);
 app.use("/api/auth", userRouter);
 app.use("/api/cart", cartRouter);
+app.use("/api/analytics", analyticRouter);
 app.use("/api/contact", contactRouter);
+
+app.post('/api/forget-password', passwordCtrl.forgetPassword);
+app.post('/api/reset-password/:userId/:token', passwordCtrl.resetPassword);
 
 module.exports = app;

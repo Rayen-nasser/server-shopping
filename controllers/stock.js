@@ -3,7 +3,7 @@ const fs = require("fs");
 exports.getAllProducts = (req, res, next) => {
   const currentPage = req.query.page,
     limit = Number(req.query.limit) || 0,
-    sort = req.query.sort == "desc" ? -1 : 1;
+    sort = req.query.sort == "asc" ? 1 : -1;
   let totalItems;
 
   Product.find(res.locals.filter)
@@ -50,6 +50,7 @@ exports.getProduct = (req, res, next) => {
       });
     });
 };
+
 exports.getProductsCategories = async (req, res, next) => {
   try {
     const data = await Product.distinct("category");
@@ -101,17 +102,16 @@ exports.getProductsInCategory = (req, res, next) => {
     });
 };
 exports.createProduct = (req, res, next) => {
-  //req.body = JSON.parse(req.body);
-
   const url = req.protocol + "://" + req.get("host");
 
   const product = new Product({
     name: req.body.name,
+    marque: req.body.marque,
     description: req.body.description,
     price: req.body.price,
-    imageUrl: url + "/images/" + req.file.filename,
+    imageUrl: req.body.image || url + "/images/" + req.file?.filename,
     category: req.body.category,
-    deadline: req.body.deadline,
+    // deadline: req.body.deadline,
     quantity: req.body.quantity,
   });
   Product.find({ name: req.body.name })
@@ -136,8 +136,7 @@ exports.createProduct = (req, res, next) => {
 exports.updateProduct = (req, res, next) => {
   const idProduct = req.params.id;
   const url = req.protocol + "://" + req.get("host");
-  let imageUrl = req.body.imageUrl;
-
+  let imageUrl = req.body.imageUrl || req.body.image;
   if (req.file) {
     imageUrl = url + "/images/" + req.file.filename;
   }
@@ -145,12 +144,13 @@ exports.updateProduct = (req, res, next) => {
   // Pick only the fields that are provided with new values
   const productUpdated = {
     ...(req.body.name && { name: req.body.name }),
+    ...(req.body.marque && { marque: req.body.marque }),
     ...(req.body.description && { description: req.body.description }),
     ...(req.body.price && { price: req.body.price }),
     ...(imageUrl && { imageUrl: imageUrl }),
     ...(req.body.quantity && { quantity: req.body.quantity }),
     ...(req.body.category && { category: req.body.category }),
-    ...(req.body.deadline && { deadline: req.body.deadline }),
+    // ...(req.body.deadline && { deadline: req.body.deadline }),
   };
 
   Product.updateOne({ _id: idProduct }, { $set: productUpdated })
@@ -200,7 +200,7 @@ exports.changeStatusProduct = (req, res, next) => {
     result.save().then((success) => {
       res
         .status(200)
-        .json({ message: "Change Status of Product Successfully" });
+        .json({ message: `Change Status of ${result.name} Successfully \n To : ${result.status}`});
     });
   });
 };

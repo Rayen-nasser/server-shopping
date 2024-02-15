@@ -6,6 +6,10 @@ const productSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  marque: {
+    type: String,
+    required: false,
+  },
   quantity: {
     type: Number,
     required: true,
@@ -19,23 +23,28 @@ const productSchema = mongoose.Schema({
     type: Number,
     required: true,
   },
+  cost: {
+    type: Number,
+    required: true,
+  },
   imageUrl: {
     type: String,
     required: true,
   },
   category: {
     type: String,
-    required: false,
+    required: true,
   },
   deadline: {
-    type: String,
+    type: Date,
     required: false,
+    default: Date.now,
   },
   status: {
     type: String,
     default: "available",
     required: false,
-  }
+  },
 });
 
 module.exports = mongoose.model("Product", productSchema);

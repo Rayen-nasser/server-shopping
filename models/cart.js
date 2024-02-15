@@ -2,14 +2,15 @@ const mongoose = require("mongoose");
 
 const CartSchema = mongoose.Schema({
   userId: {
-    type: String,
-    required: true,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
   },
   date:{
     type: Date,
-    default: Date.now, // set the default value to the current date
-    required: true,
-  },
+    default: Date.now, 
+    required: false,
+  }, 
   products: [
     {
         productId: {
@@ -31,10 +32,17 @@ const CartSchema = mongoose.Schema({
     type: {},
     require: true
   },
-  accepted: {
-    type: Boolean,
-    default: false
-  }
+  sale: {
+    type: String,
+    enum: ["wait","Delivered", "Pending", "Returned"],
+    default: "wait",
+    required: false, 
+  },
+  originalCart: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Cart",
+    required: false
+    }
 });
 
 module.exports = mongoose.model("Cart", CartSchema);

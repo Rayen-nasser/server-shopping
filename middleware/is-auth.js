@@ -1,29 +1,26 @@
 const jwt = require("jsonwebtoken");
 
 module.exports = (req, res, next) => {
-    let decodeToken;
-    if (!req.get('Authorization')) {
-        res.json({error: "Not Authenticated.!?"})
-        error.statusCode = 401;
-        return 
+  let decodeToken;
+  if (!req.get("Authorization")) {
+    res.json({ message: "Not Authenticated.!?" });
+    error.statusCode = 401;
+    return;
+  }
+
+  const token = req.get("Authorization").split(" ")[1];
+
+  try {
+    decodeToken = jwt.verify(token, process.env.JWT_SECRET);
+    req.userData = decodeToken;
+  } catch (error) {
+    
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Token expired" });
     }
 
-    const token = req.get('Authorization').split(' ')[1];
+    return res.status(401).json({ message: "Authentication failed" });
+  }
 
-    try {
-        decodeToken = jwt.verify(token, process.env.JWT_SECRET);
-        req.userData = decodeToken;
-    } catch (error) {
-        // Corrected the variable name from `err` to `error`
-        error.statusCode = 500;
-        throw error;
-    }
-
-    if (!decodeToken) {
-        const error = new Error("Not Authenticated");
-        error.statusCode = 401;
-        throw error;
-    }    
-
-    next();
+  next();
 };

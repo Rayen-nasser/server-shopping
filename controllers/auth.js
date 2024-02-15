@@ -1,10 +1,10 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const fs = require('fs');
+const fs = require("fs");
 
 exports.register = async (req, res, next) => {
-  const { username, email, password, phoneNumber ,role } = req.body;
+  const { username, email, password, phoneNumber, role } = req.body;
   const admin = await User.findOne({ username });
 
   const url = req.protocol + "://" + req.get("host");
@@ -14,7 +14,7 @@ exports.register = async (req, res, next) => {
   }
 
   if (!req.file) {
-      return res.status(400).json({ message: "Profile image is required." });
+    return res.status(400).json({ message: "Profile image is required." });
   }
 
   let newUser = new User({
@@ -32,7 +32,7 @@ exports.register = async (req, res, next) => {
       .then((saveUser) => {
         const token = jwt.sign(
           {
-            _id: saveUser._id.toString(),
+            userId: saveUser._id.toString(),
             username: saveUser.username,
             email: saveUser.email,
             profile: saveUser.profile,
@@ -53,7 +53,6 @@ exports.register = async (req, res, next) => {
         res.status(400).json({
           message: "Failed to create a new user.",
           error: error,
-          color: "danger",
         });
       });
   });
@@ -77,8 +76,7 @@ exports.login = (req, res, next) => {
     .then((result) => {
       if (!result) {
         return res.status(400).json({
-          message:
-            "A user with this email could be not found",
+          message: "A user with this email could be not found",
         });
       }
       userLogedIn = result;
@@ -87,8 +85,7 @@ exports.login = (req, res, next) => {
     .then((loged) => {
       if (!loged) {
         return res.status(400).json({
-          message:
-            "Invalid Password",
+          message: "Invalid Password",
         });
       }
       if (userLogedIn.role == role) return userLogedIn;
@@ -144,7 +141,7 @@ exports.getUsers = (req, res, next) => {
     ...res.locals.filter,
     _id: {
       $ne: req.userData.userId,
-    }
+    },
   })
     .countDocuments()
     .then((search) => {
@@ -154,7 +151,7 @@ exports.getUsers = (req, res, next) => {
         ...res.locals.filter,
         _id: {
           $ne: req.userData.userId,
-        }
+        },
       })
         .select("-password")
         .sort({ id: sort })
@@ -185,9 +182,9 @@ exports.getUser = (req, res, next) => {
     .select({ password: 0, role: 0, status: 0, isBeClient: 0 })
     .then((result) => {
       if (!result) {
-        res.status(404).json({message: "No User Found With This ID..."})
+        res.status(404).json({ message: "No User Found With This ID..." });
       }
-      res.status(200).json(result)
+      res.status(200).json(result);
     })
     .catch((err) => {
       const error = new Error("No User Found With This ID...");
@@ -201,26 +198,29 @@ exports.deleteUser = (req, res, next) => {
 
   User.findById(req.params.id)
     .then((foundUser) => {
-      user = foundUser; 
-  
+      user = foundUser;
+
       if (!user) {
-        return res.status(404).json({ message: "No User Found With This ID..." });
+        return res
+          .status(404)
+          .json({ message: "No User Found With This ID..." });
       }
 
       if (user.isBeClient) {
-        return res.status(404).json({ message: "You Can Not Delete Clients..." });
+        return res
+          .status(404)
+          .json({ message: "You Can Not Delete Clients..." });
       }
-  
+
       const filename = user.profile.split("/images/")[1];
-  
+
       fs.unlink("images/" + filename, (err) => {
         if (err) {
           return res.status(500).json({
             error: "Could not delete the user profile image file",
           });
         }
-  
-        
+
         User.deleteOne({ _id: req.params.id })
           .then((result) => {
             if (result.deletedCount > 0) {
@@ -259,7 +259,7 @@ exports.changeUserStatus = (req, res, next) => {
     result.status = result.status === "Active" ? "not Active" : "Active";
     return result.save().then((success) => {
       res.status(200).json({
-        message: "User Status Changed Successfully",
+        message: `Change Status of ${result.username} Successfully \n To : ${result.status}`,
       });
     });
   });

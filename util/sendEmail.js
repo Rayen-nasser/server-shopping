@@ -1,15 +1,16 @@
 const nodemailer = require('nodemailer');
 exports.sendEmailToOwner = (messageData) => {
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    service: process.env.SERVICE,
+    secure: true, // upgrade later with STARTTLS and support for non-465 ports
     auth: {
-      user: "rayenn38@gmail.com",
-      pass: process.env.EMAIL_API_KEY ||"yogm ihjn vkvn eykz",
+      user: process.env.USER,
+      pass: process.env.EMAIL_API_KEY,
     },
   });
 
   const mailOptions = {
-    from: "rayenn38@gmail.com",
+    from: process.env.USER,
     to: messageData.email, 
     subject: messageData.subject || "Message Read Notification",
     text: messageData.body ||`Dear ${messageData.name},\n\nYour message has been read.\n\nRegards,\nThe Team`,
