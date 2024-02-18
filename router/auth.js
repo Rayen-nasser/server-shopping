@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authCtrl = require("../controllers/auth");
 const multer = require("../middleware/multer-config");
-const filter = require("../controllers/filter");
+const filter = require("../util/filter");
 const isAuth = require("../middleware/is-auth");
 
 router.post("/register", multer, authCtrl.register);

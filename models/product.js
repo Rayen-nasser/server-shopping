@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-//@TODO : Add marque of product
 const productSchema = mongoose.Schema({
   name: {
     type: String,
@@ -45,6 +44,19 @@ const productSchema = mongoose.Schema({
     default: "available",
     required: false,
   },
+});
+
+// Middleware to format price and cost before saving the document
+productSchema.pre("save", function (next) {
+  // Format price
+  if (this.price) {
+    this.price = parseFloat(this.price.toFixed(2));
+  }
+  // Format cost
+  if (this.cost) {
+    this.cost = parseFloat(this.cost.toFixed(2));
+  }
+  next();
 });
 
 module.exports = mongoose.model("Product", productSchema);

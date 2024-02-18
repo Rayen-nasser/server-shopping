@@ -1,5 +1,5 @@
-const Message = require("../models/message");
-const { sendEmailToOwner } = require("../util/sendEmail");
+const Message = require("../models/contact");
+const { sendEmail } = require("../util/sendEmail");
 exports.saveMessage = async (req, res) => {
   try {
     const { name, email, subject, body } = req.body;
@@ -90,7 +90,7 @@ exports.hasBeenRead = (req, res, next) => {
       return result.save();
     })
     .then(() => {
-      sendEmailToOwner(messageData);
+      sendEmail(messageData);
 
       res.status(200).json({ message: "Message has been read" });
     })

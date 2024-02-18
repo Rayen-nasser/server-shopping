@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const stockRouter = require("./router/stock");
+const stockRouter = require("./router/product");
 const userRouter = require("./router/auth");
 const cartRouter = require("./router/cart");
 const analyticRouter = require("./router/analytics");

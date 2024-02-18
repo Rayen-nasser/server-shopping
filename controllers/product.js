@@ -101,6 +101,7 @@ exports.getProductsInCategory = (req, res, next) => {
       next(err);
     });
 };
+
 exports.createProduct = (req, res, next) => {
   const url = req.protocol + "://" + req.get("host");
 
@@ -166,10 +167,16 @@ exports.updateProduct = (req, res, next) => {
     });
 };
 
-exports.deleteProduct = (req, res, next) => {
-  Product.findOne({
+exports.deleteProduct = async (req, res, next) => {
+  await Product.findOne({
     _id: req.params.id,
+    quantity: 0,
   }).then((product) => {
+    if (!product) {
+      return res.status(404).json({
+        message: "you Can't delete this product Until stock runs out",
+      });
+    }
     const filename = product.imageUrl.split("/images/")[1];
     fs.unlink("images/" + filename, () => {
       Product.deleteOne({ _id: req.params.id })
@@ -200,8 +207,9 @@ exports.changeStatusProduct = (req, res, next) => {
     result.save().then((success) => {
       res
         .status(200)
-        .json({ message: `Change Status of ${result.name} Successfully \n To : ${result.status}`});
+        .json({
+          message: `Change Status of ${result.name} Successfully \n To : ${result.status}`,
+        });
     });
   });
 };
-

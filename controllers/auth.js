@@ -5,30 +5,36 @@ const fs = require("fs");
 
 exports.register = async (req, res, next) => {
   const { username, email, password, phoneNumber, role } = req.body;
-  const admin = await User.findOne({ username });
+  const admin = await User.findOne({ email });
+
+  if (role == "admin") {
+    return res.json(401).send({ error: "Admin already exists." });
+  }
+
+  if (admin) {
+    return res
+      .json({ message: "This email already exit, Use other  email" })
+      .status(422);
+  }
 
   const url = req.protocol + "://" + req.get("host");
 
-  if (admin) {
-    return res.json({ message: "Admin Already Exit", color: "danger" });
-  }
-
-  if (!req.file) {
-    return res.status(400).json({ message: "Profile image is required." });
-  }
-
-  let newUser = new User({
+  const newUserData = new User({
     username,
     email,
     phoneNumber,
-    profile: url + "/images/" + req.file.filename,
     role: role,
   });
 
+  if (req.file) {
+    newUserData.profile = url + "/images/" + req.file.filename;
+  }else{
+    newUserData.profile = "https://th.bing.com/th/id/OIP.3crgevqwZUtQzFvwstQe8QAAAA?rs=1&pid=ImgDetMain"
+  }
+
   bcrypt.hash(password, 12).then((hash) => {
-    newUser.password = hash;
-    newUser
-      .save()
+    newUserData.password = hash;
+    return newUserData.save()
       .then((saveUser) => {
         const token = jwt.sign(
           {
@@ -72,7 +78,7 @@ exports.login = (req, res, next) => {
         "email should be at least 5 characters long and Password should be at least 8 characters long",
     });
   }
-  User.findOne({ email: email })
+  User.findOne({ email })
     .then((result) => {
       if (!result) {
         return res.status(400).json({

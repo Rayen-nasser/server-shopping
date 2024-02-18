@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-exports.sendEmailToOwner = (messageData) => {
+exports.sendEmail = (messageData) => {
   const transporter = nodemailer.createTransport({
     service: process.env.SERVICE,
     secure: true, // upgrade later with STARTTLS and support for non-465 ports

@@ -1,6 +1,6 @@
 const Cart = require("../models/cart");
 const User = require("../models/user");
-const { sendEmailToOwner } = require("../util/sendEmail");
+const { sendEmail } = require("../util/sendEmail");
 const Product = require("../models/product");
 
 module.exports.getSalesLast24Hours = async (req, res, next) => {
@@ -12,6 +12,7 @@ module.exports.getSalesLast24Hours = async (req, res, next) => {
     }).populate("userId", "username phoneNumber");
 
     const formattedCarts = carts.map((cart) => ({
+      code: cart.code,
       username: cart.userId.username,
       phoneNumber: cart.userId.phoneNumber,
       date: cart.date,
@@ -82,22 +83,22 @@ module.exports.getCart = async (req, res, next) => {
   }
 };
 module.exports.getCartByUserId = (req, res, next) => {
-  const userId = req.params.userid,
-    startDate = req.query.startDate || new Date("1970-1-1"),
-    endDate = req.query.endDate || new Date();
+  const userId = req.params.userId;
 
   Cart.find({
     userId,
-    date: { $gte: new Date(startDate), $lt: new Date(endDate) },
-  }).then((result) => {
-    if (!result) {
-      res.status(404).send("No carts for this User ID");
-    } else {
-      res.status(200).json({
-        carts: result,
-      });
-    }
-  });
+    sale: { $in: ["delivered", "pending", "wait"] },
+  })
+    .populate("products.productId")
+    .then((result) => {
+      if (!result) {
+        res.status(404).send("No carts for this User ID");
+      } else {
+        res.status(200).json({
+          carts: result,
+        });
+      }
+    });
 };
 module.exports.addCart = async (req, res, next) => {
   try {
@@ -155,7 +156,7 @@ module.exports.addCart = async (req, res, next) => {
         .join("\n")}\n\nTotal Amount: ${amountTotal}`,
     };
 
-    sendEmailToOwner(emailToClient);
+    sendEmail(emailToClient);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -168,7 +169,7 @@ module.exports.acceptOrder = async (req, res, next) => {
       "products.productId"
     );
 
-    if (cart.sale === "Delivered") {
+    if (cart.sale === "delivered") {
       return res
         .status(406)
         .json({ message: "This order has been Delivered!" });
@@ -189,7 +190,7 @@ module.exports.acceptOrder = async (req, res, next) => {
           body: `The requested quantity for product ${product.productId.name} exceeds the available stock. Only ${availableStock} units can be fulfilled.`,
         };
 
-        await sendEmailToOwner(message);
+        await sendEmail(message);
         //@TODO : get  decision of user about  this step?
 
         const editProduct = {
@@ -207,12 +208,12 @@ module.exports.acceptOrder = async (req, res, next) => {
       body: "Congratulations! Your order has been accepted by our team.\nPlease wait until we contact you with your phone number to get your demand and proceed with payment",
     };
 
-    // Assuming sendEmailToOwner is an asynchronous function
-    await sendEmailToOwner(message);
+    // Assuming sendEmail is an asynchronous function
+    await sendEmail(message);
 
     const updatedCart = await Cart.findOneAndUpdate(
       { _id: cartId },
-      { sale: "Pending" },
+      { sale: "pending" },
       { new: true }
     );
 
@@ -233,7 +234,7 @@ module.exports.deliveredOrder = async (req, res, next) => {
       throw new NotFoundError("This cart does not exist.");
     }
     console.log(cart.sale);
-    if (cart.sale === "Delivered") {
+    if (cart.sale === "delivered") {
       throw new BadDataError(
         "This order has already been delivered or cancelled."
       );
@@ -241,7 +242,7 @@ module.exports.deliveredOrder = async (req, res, next) => {
 
     cart = await Cart.findByIdAndUpdate(
       cart._id,
-      { sale: "Delivered" },
+      { sale: "delivered" },
       { new: true }
     ).exec();
 
@@ -252,45 +253,56 @@ module.exports.deliveredOrder = async (req, res, next) => {
 };
 module.exports.cancelOrder = async (req, res, next) => {
   //TODO: add validation for user id in the body matches authenticated user
-  const reason = req.body.reason || "";
+  // const reason = req.body.reason || "";
   try {
     const cartId = req.params.id;
-    let cart = await Cart.findById(cartId).populate("items").exec();
-
+    let cart = await Cart.findById(cartId).exec();
     if (!cart) {
       throw new NotFoundError("The specified cart could not be found");
     }
-    if (cart.sale !== "Pending") {
-      throw new BadDataError("You can only cancel a Pending Order!");
+    if (cart.sale !== "pending" && cart.sale !== "wait") {
+      res.status(403).json({ error: "You can only cancel a Pending Order!" });
     }
-    cart.items.forEach((item) => {
-      item.quantity = 0;
+    cart.products.forEach((product) => {
+      inventoryQuantity = product.quantity;
+      Product.findByIdAndUpdate(product.productId, {
+        quantity: product.quantity + product.ordered,
+      });
     });
-    cart.sale = "Cancelled";
+
+    cart.sale = "cancelled";
     cart.save();
-    res
-      .status(201)
-      .json({ message: "Cart has been successfully Cancelled", reason });
+    res.status(201).json({ message: "Cart has been successfully Cancelled" });
   } catch (err) {
-    return next(new ServerError("There was an error processing your request"));
+    console.log(err);
   }
 };
-module.exports.deleteCart = (req, res, next) => {
+module.exports.deleteCart = async (req, res, next) => {
   const cartId = req.params.id;
-  Cart.deleteOne({ _id: cartId })
-    .then((cart) => {
-      if (!cart) {
-        const error = new Error("Could not find the cart");
-        error.statusCode = 200;
-        throw error;
-      }
-      res.status(200).json({
-        message: `Deleted cart with id ${cartId}`,
-      });
-    })
-    .catch((error) => {
-      res.status(400).json({ error: error });
+  try {
+    const cart = await Cart.findOne({ _id: cartId });
+    if (!cart) {
+      const error = new Error("Could not find the cart");
+      error.statusCode = 404; // Set status code to 404 for "Not Found"
+      throw error;
+    }
+    if (cart.sale !== "cancelled") {
+      return res
+        .status(403)
+        .json({ message: "You can only delete a Cancelled Order!" });
+    }
+    const result = await Cart.deleteOne({ _id: cartId });
+    if (result.deletedCount === 0) {
+      const error = new Error("Could not delete the cart");
+      error.statusCode = 404; // Set status code to 404 for "Not Found"
+      throw error;
+    }
+    res.status(200).json({
+      message: `Deleted cart with code: ${cart.code}`,
     });
+  } catch (error) {
+    res.status(error.statusCode || 400).json({ error: error.message }); // Send error message in response
+  }
 };
 module.exports.returnedCart = async (req, res, next) => {
   try {
@@ -332,7 +344,7 @@ module.exports.returnedCart = async (req, res, next) => {
     }
 
     // Update sale status to "Delivered" and amountTotal in the original cart
-    originalCart.sale = "Delivered";
+    originalCart.sale = "delivered";
     originalCart.amountTotal = originalAmountTotal;
 
     // Save the changes to the original cart
@@ -340,9 +352,9 @@ module.exports.returnedCart = async (req, res, next) => {
 
     // Create a new returned cart
     const returnedCart = new Cart({
-      originalCart: originalCart._id,
+      code: originalCart.code,
       userId: originalCart.userId,
-      sale: "Returned",
+      sale: "returned",
       date: new Date(),
     });
 

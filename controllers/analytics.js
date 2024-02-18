@@ -18,7 +18,7 @@ module.exports.stockBudget = async (req, res, next) => {
 };
 module.exports.totalOrders = async (req, res, next) => {
   try {
-    const orders = await Cart.find({ sale: { $in: ["Delivered", "Pending"] } });
+    const orders = await Cart.find({ sale: { $in: ["delivered", "pending"] } });
 
     let totalOrderAmount = 0;
 
@@ -34,7 +34,7 @@ module.exports.totalOrders = async (req, res, next) => {
 };
 module.exports.totalProfits = async (req, res, next) => {
   try {
-    const carts = await Cart.find({ sale: { $in: ["Delivered", "Pending"] }}).populate(
+    const carts = await Cart.find({ sale: { $in: ["delivered", "pending"] }}).populate(
       "products.productId"
     );
 
@@ -60,7 +60,7 @@ module.exports.totalProfits = async (req, res, next) => {
 };
 module.exports.totalReturned = async (req, res, next) => {
   try {
-    const returnedOrders = await Cart.find({ sale: "Returned" });
+    const returnedOrders = await Cart.find({ sale: "returned" });
 
     const totalReturned = returnedOrders.reduce(
       (total, order) => total + order.amountTotal,
