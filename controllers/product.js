@@ -6,11 +6,17 @@ exports.getAllProducts = (req, res, next) => {
     sort = req.query.sort == "asc" ? 1 : -1;
   let totalItems;
 
-  Product.find(res.locals.filter)
+  Product.find({
+    ...res.locals.filter,
+    quantity: { $gt: 0}
+    })
     .countDocuments()
     .then((products) => {
       totalItems = products;
-      return Product.find(res.locals.filter)
+      return Product.find({
+        ...res.locals.filter,
+        quantity: { $gt: 0}
+        })
         .skip((currentPage - 1) * limit)
         .limit(limit)
         .sort({ id: sort });
@@ -102,7 +108,7 @@ exports.getProductsInCategory = (req, res, next) => {
     });
 };
 
-exports.createProduct = (req, res, next) => {
+exports.createProduct = async (req, res, next) => {
   const url = req.protocol + "://" + req.get("host");
 
   const product = new Product({
@@ -110,12 +116,13 @@ exports.createProduct = (req, res, next) => {
     marque: req.body.marque,
     description: req.body.description,
     price: req.body.price,
+    cost: req.body.cost,
     imageUrl: req.body.image || url + "/images/" + req.file?.filename,
     category: req.body.category,
     // deadline: req.body.deadline,
     quantity: req.body.quantity,
   });
-  Product.find({ name: req.body.name })
+   return await Product.find({ name: req.body.name })
     .then((result) => {
       if (result && result.length >= 1) {
         return Promise.reject("This product already exists");

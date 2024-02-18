@@ -5,13 +5,13 @@ const fs = require("fs");
 
 exports.register = async (req, res, next) => {
   const { username, email, password, phoneNumber, role } = req.body;
-  const admin = await User.findOne({ email });
+  const user = await User.findOne({ email });
 
   if (role == "admin") {
     return res.json(401).send({ error: "Admin already exists." });
   }
 
-  if (admin) {
+  if (user) {
     return res
       .json({ message: "This email already exit, Use other  email" })
       .status(422);
@@ -212,39 +212,43 @@ exports.deleteUser = (req, res, next) => {
           .json({ message: "No User Found With This ID..." });
       }
 
-      if (user.isBeClient) {
+      if (user.isBeClient  === true ) {
         return res
           .status(404)
           .json({ message: "You Can Not Delete Clients..." });
       }
 
+      
+
       const filename = user.profile.split("/images/")[1];
 
-      fs.unlink("images/" + filename, (err) => {
-        if (err) {
-          return res.status(500).json({
-            error: "Could not delete the user profile image file",
-          });
-        }
+      if(filename != undefined){
+        fs.unlink("images/" + filename, (err) => {
+          if (err) {
+            return res.status(500).json({
+              error: "Could not delete the user profile image file",
+            });
+          }
+        });
+      }
 
-        User.deleteOne({ _id: req.params.id })
-          .then((result) => {
-            if (result.deletedCount > 0) {
-              res.status(200).json({
-                message: "User and Profile Deleted Successfully",
-              });
-            } else {
-              res.status(500).json({
-                error: "Could not delete the user",
-              });
-            }
-          })
-          .catch((error) => {
+      User.deleteOne({ _id: req.params.id })
+        .then((result) => {
+          if (result.deletedCount > 0) {
+            res.status(200).json({
+              message: "User and Profile Deleted Successfully",
+            });
+          } else {
             res.status(500).json({
               error: "Could not delete the user",
             });
+          }
+        })
+        .catch((error) => {
+          res.status(500).json({
+            error: "Could not delete the user",
           });
-      });
+        });
     })
     .catch((error) => {
       res.status(500).json({

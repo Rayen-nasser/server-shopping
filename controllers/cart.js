@@ -9,14 +9,17 @@ module.exports.getSalesLast24Hours = async (req, res, next) => {
 
     const carts = await Cart.find({
       date: { $gte: twentyFourHoursAgo },
-    }).populate("userId", "username phoneNumber");
+    }).populate({
+      path: "userId",
+      select: "username  phoneNumber ",
+    });
 
     const formattedCarts = carts.map((cart) => ({
       code: cart.code,
-      username: cart.userId.username,
-      phoneNumber: cart.userId.phoneNumber,
+      username: cart.userId.username,  
+      phoneNumber: cart.userId.phoneNumber, 
       date: cart.date,
-      amountTotal: cart.amountTotal,
+      amountTotal: cart.amountTotal, 
       sale: cart.sale,
     }));
 
@@ -306,88 +309,108 @@ module.exports.deleteCart = async (req, res, next) => {
 };
 module.exports.returnedCart = async (req, res, next) => {
   try {
-    const { id: cartId } = req.params;
-    const products = req.body;
-
+    // Extract cartId from request parameters and get returned products from request body
+    const  cartId = req.params.id;
+    const returnedProducts = req.body;
+  
     // Find the original cart by ID and populate its products
-    const originalCart = await Cart.findOne({ _id: cartId }).populate(
-      "products.productId"
-    );
-
+    const originalCart = await Cart.findOne({ _id: cartId }).populate("products.productId");
+  
+    // If the original cart is not found, throw a NotFoundError
     if (!originalCart) {
       throw new NotFoundError("This cart does not exist.");
     }
+  
+    // Initialize total amount for returned products
+    let totalReturnedAmount = 0;
 
-    let originalAmountTotal = 0;
+    // Update inventory for returned products and calculate new total amount for original cart
+    for (const product of returnedProducts) {
+      const originalProduct = originalCart.products.find(p => p.productId._id.toString() === product.productId);
+      const { returnQte, newQte } = product
 
-    // Update inventory for returned products and calculate new amountTotal for original cart
-    for (const returnedProduct of products) {
-      const productInOriginalCart = originalCart.products.find(
-        (p) => p.productId._id.toString() === returnedProduct.productId
-      );
 
-      if (productInOriginalCart) {
+      if (originalProduct) {
         // Update inventory for returned product
-        productInOriginalCart.quantity = returnedProduct.newQte;
-        productInOriginalCart.productId.quantity += returnedProduct.returnQte;
+        originalProduct.quantity = newQte;
+        originalProduct.productId.quantity -= returnQte;
 
+        // Calculate total amount for returned products
+        totalReturnedAmount += returnQte * originalProduct.productId.price;
+        
         // Update the product in the database
         await Product.updateOne(
-          { _id: productInOriginalCart.productId._id },
-          { quantity: Math.max(productInOriginalCart.productId.quantity, 0) }
+          { _id: originalProduct.productId._id },
+          { quantity: Math.max(originalProduct.productId.quantity, 0) }
         );
-
-        // Calculate new amountTotal for original cart
-        originalAmountTotal +=
-          returnedProduct.newQte * productInOriginalCart.productId.price;
       }
     }
-
-    // Update sale status to "Delivered" and amountTotal in the original cart
+  
+    // Update sale status to "Delivered" and calculate new total amount in the original cart
     originalCart.sale = "delivered";
-    originalCart.amountTotal = originalAmountTotal;
-
-    // Save the changes to the original cart
-    await originalCart.save();
-
-    // Create a new returned cart
+    originalCart.amountTotal = Math.abs(originalCart.amountTotal - totalReturnedAmount);
+  
+    
+  
+    // Create a new cart for returned products
     const returnedCart = new Cart({
       code: originalCart.code,
       userId: originalCart.userId,
       sale: "returned",
       date: new Date(),
+      products: [] 
     });
-
-    let amountTotalReturned = 0;
-
+  
     // Process returned products and update the returned cart
-    for (const returnedProduct of products) {
-      const productInReturnedCart = originalCart.products.find(
-        (p) => p.productId._id.toString() === returnedProduct.productId
-      );
-
-      if (productInReturnedCart) {
+    for (const product of returnedProducts) {
+      const originalProduct = originalCart.products.find(p => p.productId._id.toString() === product.productId);
+  
+      if (originalProduct) {
         // Add returned product to the returned cart
         returnedCart.products.push({
-          productId: productInReturnedCart.productId,
-          quantity: returnedProduct.returnQte,
+          productId: originalProduct.productId._id,// Remove product if quantity becomes zero
+          quantity: product.returnQte,
         });
+      }
 
-        // Calculate amountTotal for returned cart
-        amountTotalReturned +=
-          productInReturnedCart.productId.price * returnedProduct.returnQte;
+      if (originalProduct.quantity === 0) {
+        removeProductFromCart(originalProduct.productId._id, originalCart);
       }
     }
-
-    // Set the calculated amountTotal for returned cart
-    returnedCart.amountTotal = amountTotalReturned;
-
+    
+    // Set the total amount for returned cart
+    returnedCart.amountTotal = totalReturnedAmount;
+  
     // Save the returned cart to the database
     await returnedCart.save();
 
+    // Save changes to the original cart
+    await originalCart.save();
+  
+    // Respond with success message
     res.status(200).json({ message: "Cart marked as returned successfully." });
   } catch (error) {
+    // Handle errors
     console.error(error);
     next(error);
   }
+  
 };
+
+
+async function removeProductFromCart(productId, cart) {
+  try {
+    // Find the index of the product to remove
+    const indexToRemove = cart.products.findIndex(p => p.productId._id.toString() === productId.toString());
+    
+    // If the product is found, remove it from the cart
+    if (indexToRemove !== -1) {
+      cart.products.splice(indexToRemove, 1);
+      await cart.save()
+    }
+
+  } catch (error) {
+    console.error(`Error removing product from cart: ${error}`);
+    throw error; // Rethrow the error for handling in the caller function
+  }
+}
