@@ -151,7 +151,7 @@ module.exports.addCart = async (req, res, next) => {
       body: `Dear ${
         user.username
       }, \n Your order was successful! Here are the details of your order:\n\nOrder Number: ${
-        cart._id
+        cart.code
       }\nDate: ${cart.date}\n\nProducts:\n${productDetails
         .map(
           (p) => `Name: ${p.name}, Price: ${p.price}, Quantity: ${p.quantity}`
@@ -333,7 +333,7 @@ module.exports.returnedCart = async (req, res, next) => {
       if (originalProduct) {
         // Update inventory for returned product
         originalProduct.quantity = newQte;
-        originalProduct.productId.quantity -= returnQte;
+        originalProduct.productId.quantity += returnQte;
 
         // Calculate total amount for returned products
         totalReturnedAmount += returnQte * originalProduct.productId.price;

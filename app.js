@@ -13,6 +13,8 @@ const passwordCtrl = require('./controllers/passwordReset')
 require("dotenv").config();
 
 dbConnect();
+
+// this middleware function enables Cross-Origin Resource Sharing (CORS) for Express.js application
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -26,8 +28,12 @@ app.use((req, res, next) => {
   next();
 });
 
+//making the parsed data accessible via req.body
 app.use(express.json());
+
+// static files are served from here when a request is made to them
 app.use("/images", express.static(path.join(__dirname, "images")));
+
 app.use("/api/stock", stockRouter);
 app.use("/api/auth", userRouter);
 app.use("/api/cart", cartRouter);

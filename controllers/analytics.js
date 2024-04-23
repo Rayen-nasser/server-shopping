@@ -77,44 +77,48 @@ module.exports.totalReturned = async (req, res, next) => {
 };
 module.exports.topSellingProducts = async (req, res, next) => {
   try {
+    // Using the Cart collection and aggregation pipeline to find top selling products
     const topSellingProducts = await Cart.aggregate([
-      { $unwind: "$products" }, // Unwind the products array
+      { $unwind: "$products" }, // Unwind the products array to get individual products
       {
         $group: {
-          _id: "$products.productId", // Group by productId
+          _id: "$products.productId", // Group by productId to aggregate quantities
           totalQuantitySold: { $sum: "$products.quantity" }, // Sum up the quantities
         },
       },
-      { $sort: { totalQuantitySold: -1 } }, // Sort in descending order
+      { $sort: { totalQuantitySold: -1 } }, // Sort in descending order of total quantity sold
       { $limit: 10 }, // Limit to the top 10 selling products
       {
         $lookup: {
-          from: "products",
-          localField: "_id",
+          from: "products", // Lookup the 'products' collection
+          localField: "_id", // Match local field '_id' with foreign field '_id'
           foreignField: "_id",
-          as: "productDetails",
+          as: "productDetails", // Store the joined documents in 'productDetails' array
         },
       },
       {
         $addFields: {
+          // Add a new field 'productInfo' which contains the first element of 'productDetails' array
           productInfo: { $arrayElemAt: ["$productDetails", 0] },
         },
       },
       {
         $project: {
-          _id: 0,
-          productId: "$_id",
-          totalQuantitySold: 1,
-          imageUrl: "$productInfo.imageUrl",
-          marque: "$productInfo.marque",
-          name: "$productInfo.name",
-          price: "$productInfo.price",
+          _id: 0, // Exclude '_id' field from the final output
+          productId: "$_id", // Rename '_id' field to 'productId'
+          totalQuantitySold: 1, // Include 'totalQuantitySold' field
+          imageUrl: "$productInfo.imageUrl", // Include 'imageUrl' from 'productInfo'
+          marque: "$productInfo.marque", // Include 'marque' from 'productInfo'
+          name: "$productInfo.name", // Include 'name' from 'productInfo'
+          price: "$productInfo.price", // Include 'price' from 'productInfo'
         },
       },
     ]);
 
+    // Return the top selling products as JSON response
     return res.status(200).json({ selling: topSellingProducts });
   } catch (error) {
+    // Handle errors if any
     console.error("Error finding top selling products:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }

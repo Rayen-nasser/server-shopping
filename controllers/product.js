@@ -24,7 +24,7 @@ exports.getAllProducts = (req, res, next) => {
     .then((result) => {
       if (!result) {
         const error = new Error("No Products Found");
-        error.statusCode = 200;
+        error.statusCode = 404;
         throw error;
       } else {
         res.status(200).json({
