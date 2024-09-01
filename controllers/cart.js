@@ -374,7 +374,7 @@ module.exports.returnedCart = async (req, res, next) => {
       }
 
       if (originalProduct.quantity === 0) {
-        removeProductFromCart(originalProduct.productId._id, originalCart);
+        await removeProductFromCart(originalProduct.productId._id, originalCart);
       }
     }
     
